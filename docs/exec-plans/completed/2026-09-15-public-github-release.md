@@ -41,7 +41,7 @@ releases easier to audit.
 
 ## Risks and rollback
 
-- GitHub Pages must be enabled with Actions as its source after the first push.
+- The Pages workflow enables GitHub Pages automatically on its first successful run.
 - The repository URL is derived by the product page at runtime, avoiding a hard-coded
   owner before publication.
 - Removing `docs/` and the two workflows fully rolls back the publication surface
