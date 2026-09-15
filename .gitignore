@@ -1,0 +1,8 @@
+/build/
+/release/
+/downloads/
+*.part
+*.video.m4s
+*.audio.m4s
+BiliGreen-startup-error.txt
+.DS_Store
