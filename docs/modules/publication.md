@@ -10,6 +10,8 @@ there is deliberately no separate marketing site or blog.
 
 - `README.md` and `README.en.md`: primary Chinese and English project pages, including
   direct platform downloads, quick navigation, usage and limitations.
+- `CONTRIBUTORS.md`: bilingual attribution boundary for the human maintainer and the
+  AI collaboration tool, without implying that Codex owns a GitHub account or access.
 - `docs/assets/preview.svg`: privacy-safe product preview used by both READMEs.
 - `.github/workflows/release.yml`: tests, builds, packages, and attaches four archives
   to tagged GitHub Releases.

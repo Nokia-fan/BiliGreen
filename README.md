@@ -34,6 +34,7 @@ BiliGreen 是一个本地运行的 B 站视频与音频下载工具。发行版�
 - [收藏夹批量下载](#收藏夹批量下载)
 - [登录与隐私](#登录与隐私)
 - [常见限制](#已知限制)
+- [项目创作与致谢](#项目创作与致谢)
 - [参与贡献](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [更新记录](CHANGELOG.md)
 
 ## 主要功能
@@ -134,3 +135,9 @@ chmod +x build-all.sh package-release.sh
 ```
 
 原始二进制位于 `build/`，Windows/Linux 发行包位于 `release/`。Windows 构建使用 GUI 子系统，不弹出常驻黑色窗口；Linux 压缩包保留可执行权限。macOS 未签名程序首次启动可能需要在系统安全设置中手动放行。
+
+## 项目创作与致谢
+
+BiliGreen 由 [Nokia-fan](https://github.com/Nokia-fan) 发起和维护，并在 [OpenAI Codex](https://openai.com/codex/) 的协助下完成产品设计、程序实现、问题排查、测试、文档整理与发行准备。
+
+Codex 在本项目中是 AI 协作工具，不对应可加入 GitHub 仓库的独立个人账号。项目方向、最终决策、发布内容及维护责任由项目维护者承担。详细说明见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。

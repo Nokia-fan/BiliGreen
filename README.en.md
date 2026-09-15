@@ -81,3 +81,9 @@ go run .
 ```
 
 Build binaries and archives with `./build-all.sh` followed by `./package-release.sh`. Raw binaries are written to `build/`; release archives to `release/`.
+
+## Creation and acknowledgements
+
+BiliGreen was initiated and is maintained by [Nokia-fan](https://github.com/Nokia-fan), with assistance from [OpenAI Codex](https://openai.com/codex/) in product design, implementation, debugging, testing, documentation and release preparation.
+
+Codex is credited as an AI collaboration tool rather than an independent GitHub account or repository member. The maintainer remains responsible for the project's direction, final decisions, published content and ongoing maintenance. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for details.
