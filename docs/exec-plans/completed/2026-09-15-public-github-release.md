@@ -9,8 +9,8 @@ Risk Level: Low
 
 ## Goal
 
-Prepare BiliGreen as a public, discoverable, bilingual GitHub project with an
-app-store-style product page and repeatable release automation.
+Prepare BiliGreen as a public, discoverable, bilingual GitHub project whose normal
+repository README explains the product clearly, with repeatable release automation.
 
 ## Repository findings and decision
 
@@ -26,29 +26,25 @@ releases easier to audit.
 ## Implemented slices
 
 1. Added repository hygiene, MIT licensing, security and contribution documents.
-2. Added Chinese and English READMEs and a privacy-safe vector preview.
-3. Added a responsive bilingual static product page with language detection.
-4. Added GitHub Actions for Pages deployment and tagged release packaging.
+2. Added Chinese and English project READMEs and a privacy-safe vector preview.
+3. Added direct platform download links and newcomer-friendly navigation.
+4. Added GitHub Actions for tagged release packaging.
 5. Updated release archives to include both languages and the license.
 6. Validated Go tests, vet, HTML/SVG parsing, shell syntax and archive contents.
 
 ## Architecture invariants
 
-- Website publishing remains separate from the local application runtime.
+- Project presentation remains documentation-only and separate from the app runtime.
 - No credentials, downloaded media, account names or local paths are committed.
 - Release artifacts are generated from a tag rather than stored in Git.
 - Chinese and English documentation ship together.
 
 ## Risks and rollback
 
-- The Pages workflow enables GitHub Pages automatically on its first successful run.
-- The repository URL is derived by the product page at runtime, avoiding a hard-coded
-  owner before publication.
-- Removing `docs/` and the two workflows fully rolls back the publication surface
-  without changing application behavior.
+- Removing the README presentation additions does not change application behavior.
 
 ## Follow-ups
 
 - Configure the maintainer's Git name and email, make the initial commit, create the
   public GitHub repository, push `main`, enable Pages, and tag the first release.
-- Replace the vector preview with additional real screenshots later if desired.
+- Add more privacy-safe real screenshots later if desired.

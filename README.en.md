@@ -4,9 +4,26 @@ English · [简体中文](README.md)
 
 ![BiliGreen app preview](docs/assets/preview.svg)
 
+[![Release](https://img.shields.io/github/v/release/Nokia-fan/BiliGreen?label=release)](https://github.com/Nokia-fan/BiliGreen/releases/latest)
+[![Build](https://github.com/Nokia-fan/BiliGreen/actions/workflows/release.yml/badge.svg)](https://github.com/Nokia-fan/BiliGreen/actions/workflows/release.yml)
+[![License](https://img.shields.io/github/license/Nokia-fan/BiliGreen)](LICENSE)
+
+## What is BiliGreen?
+
 BiliGreen is a local Bilibili video and audio downloader distributed as a single-file portable app. End users do not need Go, Python, FFmpeg or a separate media player. Double-clicking the executable opens a web interface accessible only from the local computer.
 
 > Download only content you own, are authorized to save, or the platform explicitly permits. BiliGreen does not bypass membership, payment, DRM, region or account restrictions.
+
+If you only want to use the app, you do not need to read the source or install a development environment. Download the matching archive below, extract it and double-click the executable.
+
+## Download now
+
+| System | Most computers (x64) | ARM64 devices |
+| --- | --- | --- |
+| Windows | [Windows x64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Windows-amd64.zip) | [Windows ARM64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Windows-arm64.zip) |
+| Linux | [Linux x64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Linux-amd64.tar.gz) | [Linux ARM64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Linux-arm64.tar.gz) |
+
+Choose **x64** for most ordinary Windows and Linux computers. See [Releases](https://github.com/Nokia-fan/BiliGreen/releases) for version history and all downloads.
 
 ## Highlights
 

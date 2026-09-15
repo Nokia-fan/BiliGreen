@@ -4,9 +4,37 @@
 
 ![BiliGreen 应用预览](docs/assets/preview.svg)
 
+[![Release](https://img.shields.io/github/v/release/Nokia-fan/BiliGreen?label=最新版)](https://github.com/Nokia-fan/BiliGreen/releases/latest)
+[![Build](https://github.com/Nokia-fan/BiliGreen/actions/workflows/release.yml/badge.svg)](https://github.com/Nokia-fan/BiliGreen/actions/workflows/release.yml)
+[![License](https://img.shields.io/github/license/Nokia-fan/BiliGreen)](LICENSE)
+
+## 这是什么？
+
 BiliGreen 是一个本地运行的 B 站视频与音频下载工具。发行版为单文件绿色软件，无需安装 Go、Python、FFmpeg 或额外播放器。双击程序后，它会自动打开只允许本机访问的网页界面。
 
 > 请仅下载你拥有版权、获得授权或平台明确允许保存的内容。本工具不会绕过会员、付费、DRM、地区或账号权限。
+
+如果你只是想使用，不需要阅读源码，也不需要安装开发环境：从下面的表格下载适合自己电脑的压缩包，解压后双击即可。
+
+## 立即下载
+
+| 系统 | 常见电脑（x64） | ARM64 设备 |
+| --- | --- | --- |
+| Windows | [下载 Windows x64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Windows-amd64.zip) | [下载 Windows ARM64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Windows-arm64.zip) |
+| Linux | [下载 Linux x64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Linux-amd64.tar.gz) | [下载 Linux ARM64](https://github.com/Nokia-fan/BiliGreen/releases/latest/download/BiliGreen-Linux-arm64.tar.gz) |
+
+不确定选哪个时，大多数普通 Windows 或 Linux 电脑请选择 **x64**。完整版本记录和所有文件可在 [Releases](https://github.com/Nokia-fan/BiliGreen/releases) 查看。
+
+## 快速导航
+
+- [主要功能](#主要功能)
+- [使用方法](#使用方法)
+- [下载目录](#下载目录)
+- [视频和音频质量](#视频和音频质量)
+- [收藏夹批量下载](#收藏夹批量下载)
+- [登录与隐私](#登录与隐私)
+- [常见限制](#已知限制)
+- [参与贡献](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [更新记录](CHANGELOG.md)
 
 ## 主要功能
 

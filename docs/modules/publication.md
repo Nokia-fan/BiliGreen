@@ -1,16 +1,16 @@
-# Publication module
+# GitHub project publication module
 
 ## Responsibility
 
-The publication module turns the source repository into a discoverable bilingual
-product and downloadable releases without coupling publishing logic to the app.
+The publication module presents the repository as a conventional, discoverable
+bilingual open-source project. The repository README is the primary user entry point;
+there is deliberately no separate marketing site or blog.
 
 ## Interfaces
 
-- `docs/index.html`: static Chinese/English product page deployed by GitHub Pages.
-- `docs/assets/preview.svg`: privacy-safe product preview used by the page and README.
-- `.github/workflows/pages.yml`: enables GitHub Pages when necessary, then deploys
-  `docs/` after changes reach `main`.
+- `README.md` and `README.en.md`: primary Chinese and English project pages, including
+  direct platform downloads, quick navigation, usage and limitations.
+- `docs/assets/preview.svg`: privacy-safe product preview used by both READMEs.
 - `.github/workflows/release.yml`: tests, builds, packages, and attaches four archives
   to tagged GitHub Releases.
 - `build-all.sh` and `package-release.sh`: local and CI entry points; output contracts
@@ -19,10 +19,9 @@ product and downloadable releases without coupling publishing logic to the app.
 
 ## Dependencies and lifecycle
 
-The workflows depend on GitHub Actions and Go modules declared in `go.mod`. Pages is
-static and has no runtime backend. A maintainer publishes a release by pushing a tag
-such as `v0.5.0`; GitHub owns the generated release artifacts. Local outputs remain
-ignored by Git.
+The release workflow depends on GitHub Actions and Go modules declared in `go.mod`.
+A maintainer publishes a release by pushing a tag such as `v0.5.0`; GitHub owns the
+generated artifacts. Local outputs remain ignored by Git.
 
 ## Security boundary
 
