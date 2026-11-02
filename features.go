@@ -370,15 +370,25 @@ func applyFavoriteAction(ctx context.Context, cookie, action string, sourceFolde
 	if csrf == "" {
 		return fmt.Errorf("Cookie 中缺少 bili_jct，不能修改收藏夹")
 	}
-	form := url.Values{"resources": {fmt.Sprintf("%d:2", aid)}, "csrf": {csrf}}
+	mid := cookieValue(cookie, "DedeUserID")
+	if mid == "" {
+		if nav, err := requireLogin(ctx); err == nil && nav.Mid != 0 {
+			mid = strconv.FormatInt(nav.Mid, 10)
+		}
+	}
+	form := url.Values{"resources": {fmt.Sprintf("%d:2", aid)}, "csrf": {csrf}, "platform": {"web"}}
 	endpoint := "https://api.bilibili.com/x/v3/fav/resource/batch-del"
 	form.Set("media_id", strconv.FormatInt(sourceFolder, 10))
 	if action == "move" {
 		if targetFolder == 0 || targetFolder == sourceFolder {
 			return fmt.Errorf("请选择另一个目标收藏夹")
 		}
+		if mid == "" {
+			return fmt.Errorf("无法获取用户 UID (mid)，请重新登录后重试")
+		}
 		endpoint = "https://api.bilibili.com/x/v3/fav/resource/move"
 		form.Del("media_id")
+		form.Set("mid", mid)
 		form.Set("src_media_id", strconv.FormatInt(sourceFolder, 10))
 		form.Set("tar_media_id", strconv.FormatInt(targetFolder, 10))
 	} else if action != "remove" {
@@ -397,9 +407,99 @@ func applyFavoriteAction(ctx context.Context, cookie, action string, sourceFolde
 		return err
 	}
 	if out.Code != 0 {
-		return fmt.Errorf("B站返回：%s", out.Message)
+		return fmt.Errorf("B站返回：%s (code=%d)", out.Message, out.Code)
 	}
 	return nil
+}
+
+type migrationRecord struct {
+	ID               string `json:"id"`
+	AID              int64  `json:"aid"`
+	BVID             string `json:"bvid"`
+	Title            string `json:"title"`
+	Action           string `json:"action"`
+	SourceFolderID   int64  `json:"source_folder_id"`
+	SourceFolderName string `json:"source_folder_name"`
+	TargetFolderID   int64  `json:"target_folder_id"`
+	TargetFolderName string `json:"target_folder_name"`
+	CreatedAt        int64  `json:"created_at"`
+	Status           string `json:"status"` // "done" 或 "reverted"
+}
+
+var migrationHistory = struct {
+	sync.RWMutex
+	list []migrationRecord
+}{}
+
+func recordMigration(rec migrationRecord) {
+	migrationHistory.Lock()
+	defer migrationHistory.Unlock()
+	if rec.ID == "" {
+		rec.ID = strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	if rec.CreatedAt == 0 {
+		rec.CreatedAt = time.Now().Unix()
+	}
+	if rec.Status == "" {
+		rec.Status = "done"
+	}
+	migrationHistory.list = append([]migrationRecord{rec}, migrationHistory.list...)
+	if len(migrationHistory.list) > 200 {
+		migrationHistory.list = migrationHistory.list[:200]
+	}
+}
+
+func handleMigrationHistory(w http.ResponseWriter, r *http.Request) {
+	migrationHistory.RLock()
+	defer migrationHistory.RUnlock()
+	writeJSON(w, migrationHistory.list)
+}
+
+func handleUndoMigration(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	var in struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&in); err != nil {
+		jsonError(w, 400, "请求格式错误")
+		return
+	}
+	migrationHistory.Lock()
+	defer migrationHistory.Unlock()
+	var target *migrationRecord
+	for i := range migrationHistory.list {
+		if migrationHistory.list[i].ID == in.ID {
+			target = &migrationHistory.list[i]
+			break
+		}
+	}
+	if target == nil {
+		jsonError(w, 404, "未找到该迁移记录")
+		return
+	}
+	if target.Status == "reverted" {
+		jsonError(w, 400, "该操作之前已撤销过")
+		return
+	}
+	if target.Action != "move" {
+		jsonError(w, 400, "目前仅支持撤回迁移操作")
+		return
+	}
+	cookie := currentCookie()
+	if cookie == "" {
+		jsonError(w, 401, "请先登录")
+		return
+	}
+	// 撤回：从目标收藏夹移回源收藏夹
+	if err := applyFavoriteAction(r.Context(), cookie, "move", target.TargetFolderID, target.SourceFolderID, target.AID); err != nil {
+		jsonError(w, 502, "撤回失败："+err.Error())
+		return
+	}
+	target.Status = "reverted"
+	writeJSON(w, map[string]any{"ok": true, "message": "已成功移回原收藏夹", "record": target})
 }
 
 func cookieValue(cookie, name string) string {

@@ -89,20 +89,28 @@ type durl struct {
 	BackupURL []string `json:"backup_url"`
 }
 
+type downloadInput struct {
+	BVID, Title, Part, Cookie, Output, After, Mode string
+	CID, Aid, SourceFolder, TargetFolder           int64
+	QN, Duration, PageNumber, PageCount            int
+}
+
 type task struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Downloaded int64  `json:"downloaded"`
-	Total      int64  `json:"total"`
-	Error      string `json:"error,omitempty"`
-	PostAction string `json:"post_action,omitempty"`
-	Playable   bool   `json:"playable"`
-	Path       string `json:"-"`
-	Created    int64  `json:"created"`
-	Duration   int    `json:"duration,omitempty"`
-	PartInfo   string `json:"part_info,omitempty"`
-	MediaType  string `json:"media_type,omitempty"`
+	ID         string         `json:"id"`
+	Name       string         `json:"name"`
+	Status     string         `json:"status"`
+	Downloaded int64          `json:"downloaded"`
+	Total      int64          `json:"total"`
+	Error      string         `json:"error,omitempty"`
+	PostAction string         `json:"post_action,omitempty"`
+	Playable   bool           `json:"playable"`
+	CanRetry   bool           `json:"can_retry,omitempty"`
+	Path       string         `json:"-"`
+	Created    int64          `json:"created"`
+	Duration   int            `json:"duration,omitempty"`
+	PartInfo   string         `json:"part_info,omitempty"`
+	MediaType  string         `json:"media_type,omitempty"`
+	input      *downloadInput `json:"-"`
 }
 
 var tasks = struct {
@@ -125,6 +133,11 @@ func main() {
 	mux.HandleFunc("/api/info", handleInfo)
 	mux.HandleFunc("/api/download", handleDownload)
 	mux.HandleFunc("/api/tasks", handleTasks)
+	mux.HandleFunc("/api/tasks/retry", handleTaskRetry)
+	mux.HandleFunc("/api/tasks/retry-failed", handleTaskRetryFailed)
+	mux.HandleFunc("/api/tasks/clear", handleTaskClear)
+	mux.HandleFunc("/api/favorites/history", handleMigrationHistory)
+	mux.HandleFunc("/api/favorites/undo", handleUndoMigration)
 	mux.HandleFunc("/api/session", handleSession)
 	mux.HandleFunc("/api/feed", handleFeed)
 	mux.HandleFunc("/api/search", handleSearch)
@@ -245,11 +258,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", 405)
 		return
 	}
-	var in struct {
-		BVID, Title, Part, Cookie, Output, After, Mode string
-		CID, Aid, SourceFolder, TargetFolder           int64
-		QN, Duration, PageNumber, PageCount            int
-	}
+	var in downloadInput
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&in); err != nil {
 		jsonError(w, 400, "请求格式错误")
 		return
@@ -282,30 +291,119 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	if in.PageCount > 1 {
 		partInfo = fmt.Sprintf("P%d/%d · %s", in.PageNumber, in.PageCount, in.Part)
 	}
-	t := &task{ID: id, Name: name + ext, Status: "排队中", Created: time.Now().UnixNano(), Duration: in.Duration, PartInfo: partInfo, MediaType: in.Mode}
+	t := &task{
+		ID:        id,
+		Name:      name + ext,
+		Status:    "排队中",
+		Created:   time.Now().UnixNano(),
+		Duration:  in.Duration,
+		PartInfo:  partInfo,
+		MediaType: in.Mode,
+		input:     &in,
+	}
 	tasks.Lock()
 	tasks.m[id] = t
 	tasks.Unlock()
+
+	go runDownloadTask(t, &in)
+	writeJSON(w, t)
+}
+
+func runDownloadTask(t *task, in *downloadInput) {
+	downloadSlots <- struct{}{}
+	defer func() { <-downloadSlots }()
 	cookie := in.Cookie
 	if cookie == "" {
 		cookie = currentCookie()
 	}
-	go func() {
-		downloadSlots <- struct{}{}
-		defer func() { <-downloadSlots }()
-		setTask(t, func(t *task) { t.Status = "正在获取下载地址" })
-		if in.Mode == "audio" {
-			if err := downloadAudio(context.Background(), t, in.BVID, in.CID, in.QN, cookie, in.Output); err != nil {
-				failTask(t, err)
+	setTask(t, func(t *task) { t.Status = "正在获取下载地址" })
+	if in.Mode == "audio" {
+		if err := downloadAudio(context.Background(), t, in.BVID, in.CID, in.QN, cookie, in.Output); err != nil {
+			failTask(t, err)
+		}
+		if t.Status != "失败" && in.After != "" && in.Aid != 0 && in.SourceFolder != 0 {
+			finishFavoriteAction(context.Background(), t, cookie, in.After, in.SourceFolder, in.TargetFolder, in.Aid, in.BVID, in.Title)
+		}
+	} else {
+		downloadTask(context.Background(), t, in.BVID, in.CID, in.Aid, in.QN, cookie, in.Output, in.After, in.SourceFolder, in.TargetFolder, in.Title)
+	}
+}
+
+func handleTaskRetry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		var in struct{ ID string `json:"id"` }
+		_ = json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&in)
+		id = in.ID
+	}
+	tasks.Lock()
+	t, ok := tasks.m[id]
+	if !ok || t.input == nil {
+		tasks.Unlock()
+		jsonError(w, 404, "任务不存在或缺少重试信息")
+		return
+	}
+	in := *t.input
+	t.Status = "排队重试中"
+	t.Error = ""
+	t.CanRetry = false
+	tasks.Unlock()
+
+	go runDownloadTask(t, &in)
+	writeJSON(w, map[string]any{"ok": true, "task": t})
+}
+
+func handleTaskRetryFailed(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	tasks.Lock()
+	var toRetry []*task
+	for _, t := range tasks.m {
+		if (t.Status == "失败" || t.Error != "") && t.input != nil {
+			t.Status = "排队重试中"
+			t.Error = ""
+			t.CanRetry = false
+			toRetry = append(toRetry, t)
+		}
+	}
+	tasks.Unlock()
+
+	for _, t := range toRetry {
+		go runDownloadTask(t, t.input)
+	}
+	writeJSON(w, map[string]any{"ok": true, "retried_count": len(toRetry)})
+}
+
+func handleTaskClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	filter := r.URL.Query().Get("type")
+	tasks.Lock()
+	defer tasks.Unlock()
+	for id, t := range tasks.m {
+		if filter == "failed" {
+			if t.Status == "失败" || t.Error != "" {
+				delete(tasks.m, id)
 			}
-			if t.Status != "失败" && in.After != "" && in.Aid != 0 && in.SourceFolder != 0 {
-				finishFavoriteAction(context.Background(), t, cookie, in.After, in.SourceFolder, in.TargetFolder, in.Aid)
+		} else if filter == "completed" {
+			if strings.HasPrefix(t.Status, "完成") {
+				delete(tasks.m, id)
 			}
 		} else {
-			downloadTask(context.Background(), t, in.BVID, in.CID, in.Aid, in.QN, cookie, in.Output, in.After, in.SourceFolder, in.TargetFolder)
+			if strings.HasPrefix(t.Status, "完成") || t.Status == "失败" {
+				delete(tasks.m, id)
+			}
 		}
-	}()
-	writeJSON(w, t)
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func handleTasks(w http.ResponseWriter, r *http.Request) {
@@ -319,7 +417,7 @@ func handleTasks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, list)
 }
 
-func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn int, cookie, output, after string, sourceFolder, targetFolder int64) {
+func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn int, cookie, output, after string, sourceFolder, targetFolder int64, title string) {
 	setTask(t, func(t *task) { t.Status = "正在获取下载地址" })
 	endpoint := fmt.Sprintf("https://api.bilibili.com/x/player/playurl?bvid=%s&cid=%d&qn=%d&fnval=0&fourk=1", url.QueryEscape(bvid), cid, qn)
 	var out apiResponse[playData]
@@ -339,7 +437,7 @@ func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn 
 			return
 		}
 		if after != "" && aid != 0 && sourceFolder != 0 {
-			finishFavoriteAction(ctx, t, cookie, after, sourceFolder, targetFolder, aid)
+			finishFavoriteAction(ctx, t, cookie, after, sourceFolder, targetFolder, aid, bvid, title)
 		}
 		return
 	}
@@ -368,20 +466,35 @@ func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn 
 	}
 	setTask(t, func(t *task) { t.Path = finalPath; t.Playable = true })
 	if after != "" && aid != 0 && sourceFolder != 0 {
-		setTask(t, func(t *task) { t.Status = "下载完成，正在处理收藏夹" })
-		if err := applyFavoriteAction(ctx, cookie, after, sourceFolder, targetFolder, aid); err != nil {
-			setTask(t, func(t *task) {
-				t.Status = "下载完成（收藏夹处理失败）"
-				t.Error = err.Error()
-			})
-			return
-		}
-		setTask(t, func(t *task) { t.PostAction = "收藏夹处理完成" })
+		finishFavoriteAction(ctx, t, cookie, after, sourceFolder, targetFolder, aid, bvid, title)
+	} else {
+		setTask(t, func(t *task) { t.Status = "完成" })
 	}
-	setTask(t, func(t *task) { t.Status = "完成" })
 }
 
 func downloadFile(ctx context.Context, mediaURL, path, cookie string, t *task) error {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			setTask(t, func(t *task) { t.Status = fmt.Sprintf("网络连接重试中 (%d/3)...", attempt) })
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(attempt) * time.Second):
+			}
+		}
+		lastErr = singleDownloadFile(ctx, mediaURL, path, cookie, t)
+		if lastErr == nil {
+			return nil
+		}
+		if errors.Is(lastErr, context.Canceled) {
+			return lastErr
+		}
+	}
+	return lastErr
+}
+
+func singleDownloadFile(ctx context.Context, mediaURL, path, cookie string, t *task) error {
 	var offset int64
 	if st, err := os.Stat(path); err == nil {
 		offset = st.Size()
@@ -425,6 +538,16 @@ func downloadFile(ctx context.Context, mediaURL, path, cookie string, t *task) e
 			offset += int64(n)
 			now := offset
 			setTask(t, func(t *task) { t.Downloaded = now })
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
+	return nil
+}
 		}
 		if readErr == io.EOF {
 			break
@@ -486,7 +609,11 @@ func safeName(s string) string {
 
 func setTask(t *task, fn func(*task)) { tasks.Lock(); defer tasks.Unlock(); fn(t) }
 func failTask(t *task, err error) {
-	setTask(t, func(t *task) { t.Status = "失败"; t.Error = err.Error() })
+	setTask(t, func(t *task) {
+		t.Status = "失败"
+		t.Error = err.Error()
+		t.CanRetry = (t.input != nil)
+	})
 }
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

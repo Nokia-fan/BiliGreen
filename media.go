@@ -388,11 +388,19 @@ func findFFmpeg() (string, error) {
 	return "", errors.New("未找到外部合并器")
 }
 
-func finishFavoriteAction(ctx context.Context, t *task, cookie, after string, sourceFolder, targetFolder, aid int64) {
+func finishFavoriteAction(ctx context.Context, t *task, cookie, after string, sourceFolder, targetFolder, aid int64, bvid, title string) {
 	setTask(t, func(t *task) { t.Status = "下载完成，正在处理收藏夹" })
 	if err := applyFavoriteAction(ctx, cookie, after, sourceFolder, targetFolder, aid); err != nil {
 		setTask(t, func(t *task) { t.Status = "下载完成（收藏夹处理失败）"; t.Error = err.Error() })
 		return
 	}
+	recordMigration(migrationRecord{
+		AID:            aid,
+		BVID:           bvid,
+		Title:          title,
+		Action:         after,
+		SourceFolderID: sourceFolder,
+		TargetFolderID: targetFolder,
+	})
 	setTask(t, func(t *task) { t.Status = "完成"; t.PostAction = "收藏夹处理完成" })
 }
