@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 — 2026-11-03
+
+- Fixed favorite video AID identification by mapping Bilibili folder item ID to AID.
+- Added automatic AID resolution via view endpoint fallback when AID is missing in download tasks.
+- Fixed single video download dialog and batch favorite downloads passing valid AID.
+
 ## 0.5.1 — 2026-11-02
 
 - Fixed favorite folder move action by correctly passing user mid and platform parameters.

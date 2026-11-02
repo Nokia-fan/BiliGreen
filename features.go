@@ -174,6 +174,7 @@ func allowedImageURL(u *url.URL) bool {
 }
 
 type videoCard struct {
+	ID       int64  `json:"id"`
 	Aid      int64  `json:"aid"`
 	BVID     string `json:"bvid"`
 	Title    string `json:"title"`
@@ -337,6 +338,13 @@ func handleFavoriteItems(w http.ResponseWriter, r *http.Request) {
 		if out.Code != 0 {
 			jsonError(w, 502, "B站返回："+out.Message)
 			return
+		}
+		for i := range out.Data.Medias {
+			if out.Data.Medias[i].Aid == 0 && out.Data.Medias[i].ID != 0 {
+				out.Data.Medias[i].Aid = out.Data.Medias[i].ID
+			} else if out.Data.Medias[i].ID == 0 && out.Data.Medias[i].Aid != 0 {
+				out.Data.Medias[i].ID = out.Data.Medias[i].Aid
+			}
 		}
 		remaining := limit - len(items)
 		if len(out.Data.Medias) > remaining {

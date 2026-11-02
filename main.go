@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const version = "0.5.1"
+const version = "0.5.2"
 
 var apiClient = &http.Client{Timeout: 30 * time.Second}
 var downloadClient = &http.Client{}
@@ -316,6 +316,12 @@ func runDownloadTask(t *task, in *downloadInput) {
 	if cookie == "" {
 		cookie = currentCookie()
 	}
+	if in.Aid == 0 && in.After != "" && in.SourceFolder != 0 && in.BVID != "" {
+		var viewOut apiResponse[videoInfo]
+		if err := getJSON(context.Background(), "https://api.bilibili.com/x/web-interface/view?bvid="+url.QueryEscape(in.BVID), cookie, &viewOut); err == nil && viewOut.Data.Aid != 0 {
+			in.Aid = viewOut.Data.Aid
+		}
+	}
 	setTask(t, func(t *task) { t.Status = "正在获取下载地址" })
 	if in.Mode == "audio" {
 		if err := downloadAudio(context.Background(), t, in.BVID, in.CID, in.QN, cookie, in.Output); err != nil {
@@ -418,6 +424,12 @@ func handleTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn int, cookie, output, after string, sourceFolder, targetFolder int64, title string) {
+	if aid == 0 && after != "" && sourceFolder != 0 && bvid != "" {
+		var viewOut apiResponse[videoInfo]
+		if err := getJSON(ctx, "https://api.bilibili.com/x/web-interface/view?bvid="+url.QueryEscape(bvid), cookie, &viewOut); err == nil && viewOut.Data.Aid != 0 {
+			aid = viewOut.Data.Aid
+		}
+	}
 	setTask(t, func(t *task) { t.Status = "正在获取下载地址" })
 	endpoint := fmt.Sprintf("https://api.bilibili.com/x/player/playurl?bvid=%s&cid=%d&qn=%d&fnval=0&fourk=1", url.QueryEscape(bvid), cid, qn)
 	var out apiResponse[playData]

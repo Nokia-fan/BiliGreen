@@ -1,4 +1,4 @@
-# BiliGreen 0.5.1
+# BiliGreen 0.5.2
 
 [English](README.en.md) · 简体中文
 
