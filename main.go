@@ -548,16 +548,6 @@ func singleDownloadFile(ctx context.Context, mediaURL, path, cookie string, t *t
 	}
 	return nil
 }
-		}
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return readErr
-		}
-	}
-	return nil
-}
 
 func getJSON(ctx context.Context, endpoint, cookie string, dst any) error {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
