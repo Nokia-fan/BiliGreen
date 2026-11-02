@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const version = "0.5.0"
+const version = "0.5.1"
 
 var apiClient = &http.Client{Timeout: 30 * time.Second}
 var downloadClient = &http.Client{}

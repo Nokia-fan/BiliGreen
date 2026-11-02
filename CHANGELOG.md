@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-11-02
+
+- Fixed favorite folder move action by correctly passing user mid and platform parameters.
+- Added post-download favorite move configuration to single video download dialog.
+- Added failed task retry and batch retry actions with UI buttons.
+- Added favorite move undo functionality with local operation history.
+
 ## 0.5.0 — 2026-09-07
 
 - Added audio-only M4A downloads with detected bitrate choices.
