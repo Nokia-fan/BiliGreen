@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const version = "0.5.2"
+const version = "0.5.3"
 
 var apiClient = &http.Client{Timeout: 30 * time.Second}
 var downloadClient = &http.Client{}
@@ -71,9 +71,11 @@ type dashStream struct {
 	BaseURL2  string `json:"base_url"`
 	Bandwidth int64  `json:"bandwidth"`
 	Codecs    string `json:"codecs"`
-	Codecid   int    `json:"codecid"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
+	Codecid   int      `json:"codecid"`
+	Width     int      `json:"width"`
+	Height    int      `json:"height"`
+	BackupURL []string `json:"backupUrl"`
+	BackupURL2 []string `json:"backup_url"`
 }
 
 func (s dashStream) mediaURL() string {
@@ -81,6 +83,19 @@ func (s dashStream) mediaURL() string {
 		return s.BaseURL
 	}
 	return s.BaseURL2
+}
+
+func (s dashStream) allURLs() []string {
+	var urls []string
+	if s.BaseURL != "" {
+		urls = append(urls, s.BaseURL)
+	}
+	if s.BaseURL2 != "" && s.BaseURL2 != s.BaseURL {
+		urls = append(urls, s.BaseURL2)
+	}
+	urls = append(urls, s.BackupURL...)
+	urls = append(urls, s.BackupURL2...)
+	return urls
 }
 
 type durl struct {
@@ -484,26 +499,38 @@ func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn 
 	}
 }
 
-func downloadFile(ctx context.Context, mediaURL, path, cookie string, t *task) error {
+func downloadStream(ctx context.Context, stream dashStream, path, cookie string, t *task) error {
+	urls := stream.allURLs()
+	if len(urls) == 0 {
+		return errors.New("缺少有效下载地址")
+	}
 	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			setTask(t, func(t *task) { t.Status = fmt.Sprintf("网络连接重试中 (%d/3)...", attempt) })
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Duration(attempt) * time.Second):
+	for _, u := range urls {
+		if u == "" {
+			continue
+		}
+		for attempt := 0; attempt < 2; attempt++ {
+			if attempt > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(time.Duration(attempt) * time.Second):
+				}
 			}
-		}
-		lastErr = singleDownloadFile(ctx, mediaURL, path, cookie, t)
-		if lastErr == nil {
-			return nil
-		}
-		if errors.Is(lastErr, context.Canceled) {
-			return lastErr
+			lastErr = singleDownloadFile(ctx, u, path, cookie, t)
+			if lastErr == nil {
+				return nil
+			}
+			if errors.Is(lastErr, context.Canceled) {
+				return lastErr
+			}
 		}
 	}
 	return lastErr
+}
+
+func downloadFile(ctx context.Context, mediaURL, path, cookie string, t *task) error {
+	return downloadStream(ctx, dashStream{BaseURL: mediaURL}, path, cookie, t)
 }
 
 func singleDownloadFile(ctx context.Context, mediaURL, path, cookie string, t *task) error {
@@ -530,7 +557,25 @@ func singleDownloadFile(ctx context.Context, mediaURL, path, cookie string, t *t
 		return err
 	}
 	defer resp.Body.Close()
+	if offset > 0 && resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		if offset > 0 {
+			_ = f.Truncate(0)
+			_, _ = f.Seek(0, io.SeekStart)
+			offset = 0
+			reqFull, _ := http.NewRequestWithContext(ctx, http.MethodGet, mediaURL, nil)
+			setHeaders(reqFull, cookie)
+			respFull, errFull := downloadClient.Do(reqFull)
+			if errFull == nil {
+				defer respFull.Body.Close()
+				if respFull.StatusCode == http.StatusOK {
+					resp = respFull
+					goto READ_BODY
+				}
+			}
+		}
 		return fmt.Errorf("媒体服务器返回 %s", resp.Status)
 	}
 	if offset > 0 && resp.StatusCode == http.StatusOK {
@@ -540,6 +585,7 @@ func singleDownloadFile(ctx context.Context, mediaURL, path, cookie string, t *t
 		}
 		_, _ = f.Seek(0, io.SeekStart)
 	}
+READ_BODY:
 	buf := make([]byte, 256*1024)
 	for {
 		n, readErr := resp.Body.Read(buf)

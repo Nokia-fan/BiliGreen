@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.3 — 2026-11-04
+
+- Fixed breakpoint resume handling HTTP 416 as completed download.
+- Added automatic retry with fallback to full download on HTTP 424 / 403 CDN errors.
+- Added automatic CDN backup URL failover for DASH video and audio streams.
+
 ## 0.5.2 — 2026-11-03
 
 - Fixed favorite video AID identification by mapping Bilibili folder item ID to AID.

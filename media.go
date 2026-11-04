@@ -97,7 +97,7 @@ func downloadAudio(ctx context.Context, t *task, bvid string, cid int64, audioID
 	finalPath := filepath.Join(output, t.Name)
 	partPath := finalPath + ".part"
 	setTask(t, func(t *task) { t.Status = fmt.Sprintf("下载音频（%d kbps）", (selected.Bandwidth+500)/1000) })
-	if err := downloadFile(ctx, selected.mediaURL(), partPath, cookie, t); err != nil {
+	if err := downloadStream(ctx, selected, partPath, cookie, t); err != nil {
 		return err
 	}
 	if err := os.Rename(partPath, finalPath); err != nil {
@@ -285,7 +285,7 @@ func downloadDASH(ctx context.Context, t *task, bvid string, cid int64, qn int, 
 		t.Downloaded = 0
 		t.Status = "下载视频轨（" + qualityLabel(requested) + "）"
 	})
-	if err := downloadFile(ctx, video.mediaURL(), videoPath, cookie, t); err != nil {
+	if err := downloadStream(ctx, video, videoPath, cookie, t); err != nil {
 		return err
 	}
 	if audio.mediaURL() == "" {
@@ -306,7 +306,7 @@ func downloadDASH(ctx context.Context, t *task, bvid string, cid int64, qn int, 
 		return nil
 	}
 	setTask(t, func(t *task) { t.Total = 0; t.Downloaded = 0; t.Status = "下载音频轨" })
-	if err := downloadFile(ctx, audio.mediaURL(), audioPath, cookie, t); err != nil {
+	if err := downloadStream(ctx, audio, audioPath, cookie, t); err != nil {
 		return err
 	}
 	var combinedSize int64
