@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4 — 2026-11-05
+
+- Added human-readable explanation for Bilibili error 87008 (UP creator charging/sponsor-exclusive videos).
+- Fixed cross-CDN byte misalignment by resetting temporary download chunks when switching CDN backup nodes.
+- Added automatic dirty-cache cleanup on muxer failure to prevent persistent corruption upon task retry.
+
 ## 0.5.3 — 2026-11-04
 
 - Fixed breakpoint resume handling HTTP 416 as completed download.

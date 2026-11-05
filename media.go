@@ -39,7 +39,7 @@ func fetchDASH(ctx context.Context, bvid string, cid int64, cookie string) (*pla
 		return nil, err
 	}
 	if out.Code != 0 || out.Data.Dash == nil {
-		return nil, fmt.Errorf("B站未返回 DASH 媒体流：%s", out.Message)
+		return nil, fmt.Errorf("B站未返回 DASH 媒体流：%s", biliErrorMessage(out.Code, out.Message))
 	}
 	return &out.Data, nil
 }
@@ -196,7 +196,7 @@ func handleQualities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if out.Code != 0 {
-		jsonError(w, 502, "B站返回："+out.Message)
+		jsonError(w, 502, "B站返回："+biliErrorMessage(out.Code, out.Message))
 		return
 	}
 	labels := map[int]string{}
@@ -249,7 +249,7 @@ func downloadDASH(ctx context.Context, t *task, bvid string, cid int64, qn int, 
 		return err
 	}
 	if out.Code != 0 || out.Data.Dash == nil {
-		return fmt.Errorf("B站未返回 DASH 高画质流：%s", out.Message)
+		return fmt.Errorf("B站未返回 DASH 高画质流：%s", biliErrorMessage(out.Code, out.Message))
 	}
 	requested := qn
 	if requested == 127 {
@@ -325,7 +325,9 @@ func downloadDASH(ctx context.Context, t *task, bvid string, cid int64, qn int, 
 			return fmt.Errorf("音视频合并失败：%v %s", err, strings.TrimSpace(string(outputBytes)))
 		}
 	} else if err := mergeM4S(videoPath, audioPath, muxPath); err != nil {
-		return fmt.Errorf("内置合并器失败：%w", err)
+		_ = os.Remove(videoPath)
+		_ = os.Remove(audioPath)
+		return fmt.Errorf("内置合并器失败：%w（已清理异常临时缓存，可直接重试）", err)
 	}
 	if err := os.Rename(muxPath, finalPath); err != nil {
 		return err

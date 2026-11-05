@@ -238,6 +238,16 @@ func localOnly(next http.Handler) http.Handler {
 	})
 }
 
+func biliErrorMessage(code int, msg string) string {
+	if code == 87008 || msg == "87008" {
+		return "87008（该视频为UP主充电/包月专属视频，需开通专属充电后才可观看或下载）"
+	}
+	if msg != "" {
+		return msg
+	}
+	return strconv.Itoa(code)
+}
+
 func handleInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", 405)
@@ -453,7 +463,7 @@ func downloadTask(ctx context.Context, t *task, bvid string, cid, aid int64, qn 
 		return
 	}
 	if out.Code != 0 {
-		failTask(t, fmt.Errorf("B站返回：%s", out.Message))
+		failTask(t, fmt.Errorf("B站返回：%s", biliErrorMessage(out.Code, out.Message)))
 		return
 	}
 	if len(out.Data.DURL) == 0 || out.Data.Quality != qn || qn > 80 {
@@ -505,9 +515,15 @@ func downloadStream(ctx context.Context, stream dashStream, path, cookie string,
 		return errors.New("缺少有效下载地址")
 	}
 	var lastErr error
-	for _, u := range urls {
+	for idx, u := range urls {
 		if u == "" {
 			continue
+		}
+		if idx > 0 {
+			if f, err := os.OpenFile(path, os.O_TRUNC|os.O_WRONLY, 0644); err == nil {
+				_ = f.Close()
+			}
+			setTask(t, func(t *task) { t.Downloaded = 0 })
 		}
 		for attempt := 0; attempt < 2; attempt++ {
 			if attempt > 0 {
