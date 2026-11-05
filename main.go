@@ -304,7 +304,13 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	id := strconv.FormatInt(time.Now().UnixNano(), 36)
 	name := safeName(in.Title)
-	if in.Part != "" && in.Part != in.Title {
+	if in.PageCount > 1 {
+		if in.Part != "" && in.Part != in.Title {
+			name += fmt.Sprintf(" - P%d.%s", in.PageNumber, safeName(in.Part))
+		} else {
+			name += fmt.Sprintf(" - P%d", in.PageNumber)
+		}
+	} else if in.Part != "" && in.Part != in.Title {
 		name += " - " + safeName(in.Part)
 	}
 	name += " [" + in.BVID + "]"

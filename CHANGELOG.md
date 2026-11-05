@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5 — 2026-11-05
+
+- Fixed multi-part video filename collision when sub-parts share identical titles by appending `P{N}.` prefix.
+- Isolated temporary download files by appending unique CID to prevent concurrent download write collisions and muxer corruption.
+
 ## 0.5.4 — 2026-11-05
 
 - Added human-readable explanation for Bilibili error 87008 (UP creator charging/sponsor-exclusive videos).
